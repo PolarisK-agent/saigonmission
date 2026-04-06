@@ -139,19 +139,6 @@ function attachThumbnailFallback() {
       img.src = "assets/images/blog.png";
       });
     }
-
-    if (img.dataset.upgraded === "true") return;
-    img.dataset.upgraded = "true";
-
-    const videoId = img.dataset.videoId;
-    if (!videoId) return;
-
-    const probe = new Image();
-    probe.onload = () => {
-      img.dataset.tried = "maxres";
-      img.src = `https://i.ytimg.com/vi/${videoId}/maxresdefault.jpg`;
-    };
-    probe.src = `https://i.ytimg.com/vi/${videoId}/maxresdefault.jpg`;
   });
 }
 
@@ -222,7 +209,6 @@ function renderNextPage() {
               src="${escapeHtml(item.thumbnail || `https://i.ytimg.com/vi/${item.videoId}/hqdefault.jpg`)}"
               alt="${titleText} 썸네일"
               loading="lazy"
-              referrerpolicy="no-referrer"
               data-video-id="${escapeHtml(item.videoId)}"
               data-tried="hq"
             />
