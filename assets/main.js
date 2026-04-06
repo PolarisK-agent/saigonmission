@@ -50,12 +50,21 @@ function extractBibleRef(text) {
 }
 
 function cleanDisplayTitle(title) {
-  return String(title || "")
+  return decodeHtmlEntities(String(title || ""))
     .replace(/Saig\w*\s+Mission\s+Church/gi, "")
     .replace(/사이공\s*선교\s*교회|사이공선교교회|사이공선교회/g, "")
     .replace(/\s{2,}/g, " ")
     .replace(/^[-|/\s]+|[-|/\s]+$/g, "")
     .trim();
+}
+
+function decodeHtmlEntities(text) {
+  return String(text || "")
+    .replaceAll("&amp;", "&")
+    .replaceAll("&lt;", "<")
+    .replaceAll("&gt;", ">")
+    .replaceAll("&quot;", '"')
+    .replaceAll("&#39;", "'");
 }
 
 function escapeHtml(str) {
@@ -68,7 +77,7 @@ function escapeHtml(str) {
 }
 
 function getSummary(item) {
-  if (item.summary) return item.summary;
+  if (item.summary) return decodeHtmlEntities(item.summary);
 
   const titleLead = cleanDisplayTitle(item.title).split("/")[0].replace(/["']/g, "").trim();
   if (titleLead) {
@@ -135,7 +144,7 @@ function updateLoadMoreState() {
 }
 
 function formatSermonTitle(rawTitle, dateText) {
-  const s = String(rawTitle || "").replace(/["']/g, "").trim();
+  const s = decodeHtmlEntities(String(rawTitle || "")).replace(/["']/g, "").trim();
   const parts = s.split("/").map((p) => p.trim()).filter(Boolean);
 
   const title = parts[0] || cleanDisplayTitle(s) || "주일예배 설교";
@@ -224,6 +233,25 @@ async function renderSermons() {
       if (!apiRes.ok) throw new Error(`API HTTP ${apiRes.status}`);
       const apiData = await apiRes.json();
       items = Array.isArray(apiData?.items) ? apiData.items : [];
+
+      // If API filtering yields too few items, merge static fallback so
+      // users can still browse older sermons with the load-more button.
+      if (items.length <= PAGE_SIZE) {
+        const fallbackRes = await fetch("data/sermons.json", { cache: "no-store" });
+        if (fallbackRes.ok) {
+          const fallbackItems = await fallbackRes.json();
+          if (Array.isArray(fallbackItems)) {
+            const merged = [...items];
+            const seen = new Set(items.map((it) => it?.videoId).filter(Boolean));
+            for (const it of fallbackItems) {
+              if (!it || !it.videoId || seen.has(it.videoId)) continue;
+              seen.add(it.videoId);
+              merged.push(it);
+            }
+            items = merged;
+          }
+        }
+      }
     } catch (apiErr) {
       console.warn("Workers API fetch failed, fallback to static JSON", apiErr);
       const res = await fetch("data/sermons.json", { cache: "no-store" });
