@@ -16,6 +16,16 @@ const seniorPastorKeywords = config.seniorPastorKeywords || [];
 const excludeKeywords = config.excludeKeywords || [];
 const removeEnglishChurchNames = config.removeEnglishChurchNames || [];
 
+function decodeXmlEntities(text) {
+  return String(text || "")
+    .replaceAll("&amp;", "&")
+    .replaceAll("&lt;", "<")
+    .replaceAll("&gt;", ">")
+    .replaceAll("&quot;", '"')
+    .replaceAll("&#39;", "'")
+    .replaceAll("&#10;", " ");
+}
+
 function extractText(value) {
   if (!value) return "";
   if (typeof value === "string") return value;
@@ -31,7 +41,7 @@ function squash(text) {
 }
 
 function cleanTitle(title) {
-  let next = title;
+  let next = decodeXmlEntities(String(title || ""));
   for (const phrase of removeEnglishChurchNames) {
     const escaped = phrase.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
     next = next.replace(new RegExp(escaped, "gi"), "");
@@ -96,6 +106,70 @@ function isSeniorPastorSermon(item) {
   return true;
 }
 
+function parseDateParts(text) {
+  const s = String(text || "");
+  const m = s.match(/\b(20\d{2})\s*[./-]\s*(\d{1,2})\s*[./-]\s*(\d{1,2})\b/);
+  if (!m) return null;
+  const y = Number(m[1]);
+  const mo = Number(m[2]);
+  const d = Number(m[3]);
+  if (Number.isNaN(y) || Number.isNaN(mo) || Number.isNaN(d)) return null;
+  return { y, mo, d };
+}
+
+function makeDateKey(item) {
+  const byTitle = parseDateParts(item.title);
+  if (byTitle) {
+    return `${byTitle.y}-${String(byTitle.mo).padStart(2, "0")}-${String(byTitle.d).padStart(2, "0")}`;
+  }
+
+  if (item.publishedAt) {
+    const dt = new Date(item.publishedAt);
+    if (!Number.isNaN(dt.getTime())) {
+      return `${dt.getUTCFullYear()}-${String(dt.getUTCMonth() + 1).padStart(2, "0")}-${String(dt.getUTCDate()).padStart(2, "0")}`;
+    }
+  }
+
+  return "";
+}
+
+function canonicalSermonTitle(title) {
+  return cleanTitle(title)
+    .replace(/["'“”‘’]/g, "")
+    .replace(/\b(주일\s*예배\s*설교|주일\s*예배|주일예배설교|주일예배|예배설교|설교|예배)\b/g, " ")
+    .replace(/\b(장재식\s*목사|장재식목사|담임\s*목사|담임목사)\b/g, " ")
+    .replace(/[\/|]+/g, " ")
+    .replace(/\s{2,}/g, " ")
+    .trim();
+}
+
+function itemTimestamp(item) {
+  if (item.publishedAt) {
+    const dt = new Date(item.publishedAt);
+    if (!Number.isNaN(dt.getTime())) return dt.getTime();
+  }
+
+  const parts = parseDateParts(item.title) || parseDateParts(item.publishedText);
+  if (parts) {
+    return Date.UTC(parts.y, parts.mo - 1, parts.d);
+  }
+
+  return 0;
+}
+
+function isLikelyLiveItem(item) {
+  const text = squash(`${item.title || ""} ${item.description || ""}`).toLowerCase();
+  const liveKeywords = ["live", "라이브", "실시간", "stream", "스트리밍", "prismlivestudio"];
+  if (liveKeywords.some((k) => text.includes(k))) return true;
+
+  const published = String(item.publishedText || "").toLowerCase();
+  if (published.includes("실시간") || published.includes("streamed") || published.includes("streaming")) {
+    return true;
+  }
+
+  return false;
+}
+
 function collectVideoCandidates(node, out = []) {
   if (!node || typeof node !== "object") return out;
 
@@ -141,8 +215,24 @@ function normalize(items) {
     }
   }
 
-  return [...unique.values()]
-    .filter((item) => isSeniorPastorSermon(item))
+  const filtered = [...unique.values()]
+    .filter((item) => !isLikelyLiveItem(item))
+    .filter((item) => isSeniorPastorSermon(item));
+
+  const sorted = filtered.sort((a, b) => itemTimestamp(b) - itemTimestamp(a));
+
+  const deduped = [];
+  const seenSermonKeys = new Set();
+  for (const item of sorted) {
+    const keyTitle = canonicalSermonTitle(item.title);
+    const keyDate = makeDateKey(item);
+    const sermonKey = `${keyTitle}|${keyDate}`;
+    if (seenSermonKeys.has(sermonKey)) continue;
+    seenSermonKeys.add(sermonKey);
+    deduped.push(item);
+  }
+
+  return deduped
     .map((item) => ({
       ...item,
       title: cleanTitle(item.title),
@@ -151,7 +241,7 @@ function normalize(items) {
       thumbnailHigh: `https://i.ytimg.com/vi/${item.videoId}/maxresdefault.jpg`,
       thumbnailFallback: `https://i.ytimg.com/vi/${item.videoId}/sddefault.jpg`
     }))
-    .slice(0, Number(config.maxItems) || 9);
+    .slice(0, Number(config.maxItems) || 60);
 }
 
 async function fetchByRss() {
@@ -213,10 +303,22 @@ async function fetchByVideosPage() {
   return collectVideoCandidates(data);
 }
 
-let parsed = normalize(await fetchByRss());
-if (parsed.length === 0) {
-  parsed = normalize(await fetchByVideosPage());
+let rssItems = [];
+let videosItems = [];
+
+try {
+  rssItems = await fetchByRss();
+} catch {
+  rssItems = [];
 }
+
+try {
+  videosItems = await fetchByVideosPage();
+} catch {
+  videosItems = [];
+}
+
+const parsed = normalize([...rssItems, ...videosItems]);
 
 if (parsed.length === 0) {
   throw new Error("조건에 맞는 영상이 없어 sermons.json을 갱신하지 않았습니다.");

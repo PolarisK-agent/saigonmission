@@ -93,6 +93,7 @@ a:hover {
   background: rgba(255, 255, 255, 0.95);
   backdrop-filter: blur(12px);
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+  padding: 0.8rem 1.6rem;
 }
 
 .top-logo-link {
@@ -764,10 +765,18 @@ footer a:hover {
 
 .footer-contact-line {
   margin: 0;
-  white-space: normal;
-  overflow-wrap: anywhere;
+  white-space: nowrap;
+  overflow-wrap: normal;
   word-break: keep-all;
-  line-height: 1.8;
+  line-height: 1.7;
+}
+
+.footer-contact-item {
+  margin: 0.2rem 0 0;
+  white-space: nowrap;
+  overflow-wrap: normal;
+  word-break: keep-all;
+  line-height: 1.7;
 }
 
 /* Reveal Animation */
@@ -859,8 +868,17 @@ footer a:hover {
     padding: 0.8rem 1rem;
   }
 
+  .top-nav.scrolled {
+    padding: 0.64rem 0.8rem;
+  }
+
   .top-logo {
     width: 68px;
     height: 68px;
+  }
+
+  .footer-contact-line,
+  .footer-contact-item {
+    font-size: 0.95rem;
   }
 }
