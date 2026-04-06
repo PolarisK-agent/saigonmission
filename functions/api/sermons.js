@@ -36,7 +36,7 @@ function includesAny(text, words) {
 }
 
 function cleanTitle(title, removeEnglishChurchNames) {
-  let next = String(title || "");
+  let next = decodeXmlEntities(String(title || ""));
 
   for (const phrase of removeEnglishChurchNames) {
     const escaped = phrase.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -84,6 +84,9 @@ function buildTranscriptSummary(transcriptText, title) {
 
   if (cleaned.length < 120) {
     const firstPart = cleanTitle(squash((title || "").split("/")[0].replace(/["']/g, "")), []);
+    if (cleaned.length >= 40) {
+      return cleaned.length > 220 ? `${cleaned.slice(0, 220)}...` : cleaned;
+    }
     return firstPart ? `${firstPart} 말씀을 나누는 주일 설교입니다.` : "설교 영상 요약 정보입니다.";
   }
 
@@ -162,6 +165,70 @@ function collectVideoCandidates(node, out = []) {
   return out;
 }
 
+function parseDateParts(text) {
+  const s = String(text || "");
+  const m = s.match(/\b(20\d{2})\s*[./-]\s*(\d{1,2})\s*[./-]\s*(\d{1,2})\b/);
+  if (!m) return null;
+  const y = Number(m[1]);
+  const mo = Number(m[2]);
+  const d = Number(m[3]);
+  if (Number.isNaN(y) || Number.isNaN(mo) || Number.isNaN(d)) return null;
+  return { y, mo, d };
+}
+
+function makeDateKey(item) {
+  const byTitle = parseDateParts(item.title);
+  if (byTitle) {
+    return `${byTitle.y}-${String(byTitle.mo).padStart(2, "0")}-${String(byTitle.d).padStart(2, "0")}`;
+  }
+
+  if (item.publishedAt) {
+    const dt = new Date(item.publishedAt);
+    if (!Number.isNaN(dt.getTime())) {
+      return `${dt.getUTCFullYear()}-${String(dt.getUTCMonth() + 1).padStart(2, "0")}-${String(dt.getUTCDate()).padStart(2, "0")}`;
+    }
+  }
+
+  return "";
+}
+
+function canonicalSermonTitle(title) {
+  return cleanTitle(title, [])
+    .replace(/["'“”‘’]/g, "")
+    .replace(/\b(주일\s*예배\s*설교|주일\s*예배|주일예배설교|주일예배|예배설교|설교|예배)\b/g, " ")
+    .replace(/\b(장재식\s*목사|장재식목사|담임\s*목사|담임목사)\b/g, " ")
+    .replace(/[\/|]+/g, " ")
+    .replace(/\s{2,}/g, " ")
+    .trim();
+}
+
+function isLikelyLiveItem(item) {
+  const text = squash(`${item.title || ""} ${item.description || ""}`).toLowerCase();
+  const liveKeywords = ["live", "라이브", "실시간", "stream", "스트리밍", "prismlivestudio"];
+  if (liveKeywords.some((k) => text.includes(k))) return true;
+
+  const published = String(item.publishedText || "").toLowerCase();
+  if (published.includes("실시간") || published.includes("streamed") || published.includes("streaming")) {
+    return true;
+  }
+
+  return false;
+}
+
+function itemTimestamp(item) {
+  if (item.publishedAt) {
+    const dt = new Date(item.publishedAt);
+    if (!Number.isNaN(dt.getTime())) return dt.getTime();
+  }
+
+  const parts = parseDateParts(item.title) || parseDateParts(item.publishedText);
+  if (parts) {
+    return Date.UTC(parts.y, parts.mo - 1, parts.d);
+  }
+
+  return 0;
+}
+
 function normalize(items, options) {
   const unique = new Map();
   for (const item of items) {
@@ -169,8 +236,25 @@ function normalize(items, options) {
     if (!unique.has(item.videoId)) unique.set(item.videoId, item);
   }
 
-  return [...unique.values()]
-    .filter((item) => isSeniorPastorSermon(item, options))
+  const filtered = [...unique.values()]
+    .filter((item) => !isLikelyLiveItem(item))
+    .filter((item) => isSeniorPastorSermon(item, options));
+
+  const sorted = filtered.sort((a, b) => itemTimestamp(b) - itemTimestamp(a));
+
+  const deduped = [];
+  const seenSermonKeys = new Set();
+
+  for (const item of sorted) {
+    const keyTitle = canonicalSermonTitle(item.title);
+    const keyDate = makeDateKey(item);
+    const sermonKey = `${keyTitle}|${keyDate}`;
+    if (seenSermonKeys.has(sermonKey)) continue;
+    seenSermonKeys.add(sermonKey);
+    deduped.push(item);
+  }
+
+  return deduped
     .map((item) => ({
       ...item,
       title: cleanTitle(item.title, options.removeEnglishChurchNames),
@@ -377,10 +461,23 @@ export async function onRequestGet(context) {
   };
 
   try {
-    let items = normalize(await fetchByRss(channelId), options);
-    if (items.length === 0) {
-      items = normalize(await fetchByVideosPage(channelHandleUrl), options);
+    let rssItems = [];
+    let videosItems = [];
+
+    try {
+      rssItems = await fetchByRss(channelId);
+    } catch {
+      rssItems = [];
     }
+
+    try {
+      videosItems = await fetchByVideosPage(channelHandleUrl);
+    } catch {
+      videosItems = [];
+    }
+
+    const mergedSourceItems = [...rssItems, ...videosItems];
+    let items = normalize(mergedSourceItems, options);
 
     items = await enrichDescriptions(items);
 

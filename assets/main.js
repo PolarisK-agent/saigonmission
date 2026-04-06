@@ -233,25 +233,6 @@ async function renderSermons() {
       if (!apiRes.ok) throw new Error(`API HTTP ${apiRes.status}`);
       const apiData = await apiRes.json();
       items = Array.isArray(apiData?.items) ? apiData.items : [];
-
-      // If API filtering yields too few items, merge static fallback so
-      // users can still browse older sermons with the load-more button.
-      if (items.length <= PAGE_SIZE) {
-        const fallbackRes = await fetch("data/sermons.json", { cache: "no-store" });
-        if (fallbackRes.ok) {
-          const fallbackItems = await fallbackRes.json();
-          if (Array.isArray(fallbackItems)) {
-            const merged = [...items];
-            const seen = new Set(items.map((it) => it?.videoId).filter(Boolean));
-            for (const it of fallbackItems) {
-              if (!it || !it.videoId || seen.has(it.videoId)) continue;
-              seen.add(it.videoId);
-              merged.push(it);
-            }
-            items = merged;
-          }
-        }
-      }
     } catch (apiErr) {
       console.warn("Workers API fetch failed, fallback to static JSON", apiErr);
       const res = await fetch("data/sermons.json", { cache: "no-store" });
