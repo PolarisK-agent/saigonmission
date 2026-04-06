@@ -1,0 +1,52 @@
+╔═════════════════════════════════════════════════════════════════════════════════════════╗
+║  TARGET: Saigon Mission Church - RECOMMENDED DESIGN SYSTEM                              ║
+╚═════════════════════════════════════════════════════════════════════════════════════════╝
+┌─────────────────────────────────────────────────────────────────────────────────────────┐
+├─── PATTERN ──────────────────────────────────────────────────────────────────────────────┤
+│  Name: Scroll-Triggered Storytelling                                                    │
+│     Conversion: Narrative increases time-on-page 3x. Use progress indicator. Mobile: simplify animations.│
+│     CTA: End of each chapter (mini) + Final climax CTA                                  │
+│     Sections:                                                                           │
+│       1. 1. Intro hook, 2. Chapter 1 (problem), 3. Chapter 2 (journey), 4. Chapter 3 (solution), 5. Climax CTA│
+├─── STYLE ────────────────────────────────────────────────────────────────────────────────┤
+│  Name: Vibrant & Block-based                                                            │
+│     Mode Support: Light ✓ Full  Dark ✓ Full                                             │
+│     Keywords: Bold, energetic, playful, block layout, geometric shapes, high color      │
+│     contrast, duotone, modern, energetic                                                │
+│     Best For: Startups, creative agencies, gaming, social media, youth-focused,         │
+│     entertainment, consumer                                                             │
+│     Performance: ⚡ Good | Accessibility: ◐ Ensure WCAG                                  │
+├─── COLORS ───────────────────────────────────────────────────────────────────────────────┤
+│     [38;2;30;41;59m██[0m Primary:       #1E293B    (--color-primary)                                      │
+│     [38;2;255;255;255m██[0m On Primary:    #FFFFFF    (--color-on-primary)                                   │
+│     [38;2;51;65;85m██[0m Secondary:     #334155    (--color-secondary)                                    │
+│     [38;2;220;38;38m██[0m Accent/CTA:    #DC2626    (--color-accent)                                       │
+│     [38;2;248;250;252m██[0m Background:    #F8FAFC    (--color-background)                                   │
+│     [38;2;15;23;42m██[0m Foreground:    #0F172A    (--color-foreground)                                   │
+│     [38;2;233;237;241m██[0m Muted:         #E9EDF1    (--color-muted)                                        │
+│     [38;2;226;232;240m██[0m Border:        #E2E8F0    (--color-border)                                       │
+│     [38;2;220;38;38m██[0m Destructive:   #DC2626    (--color-destructive)                                  │
+│     [38;2;30;41;59m██[0m Ring:          #1E293B    (--color-ring)                                         │
+│     Notes: Premium dark + action red                                                    │
+├─── TYPOGRAPHY ───────────────────────────────────────────────────────────────────────────┤
+│  Inter / Inter                                                                          │
+│     Mood: dark, cinematic, technical, precision, clean, premium, developer,             │
+│     professional, high-end utility                                                      │
+│     Best For: Developer tools, fintech/trading, AI dashboards, streaming platforms,     │
+│     high-end productivity apps                                                          │
+│     Google Fonts: https://fonts.google.com/share?selection.family=Inter:wght@300;400;500;600;700│
+│     CSS Import: @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;4...│
+├─── KEY EFFECTS ──────────────────────────────────────────────────────────────────────────┤
+│     Large sections (48px+ gaps), animated patterns, bold hover (color shift),           │
+│     scroll-snap, large type (32px+), 200-300ms                                          │
+├─── AVOID ────────────────────────────────────────────────────────────────────────────────┤
+│     Muted colors + Low energy                                                           │
+├─── PRE-DELIVERY CHECKLIST ───────────────────────────────────────────────────────────────┤
+│     [ ] No emojis as icons (use SVG: Heroicons/Lucide)                                  │
+│     [ ] cursor-pointer on all clickable elements                                        │
+│     [ ] Hover states with smooth transitions (150-300ms)                                │
+│     [ ] Light mode: text contrast 4.5:1 minimum                                         │
+│     [ ] Focus states visible for keyboard nav                                           │
+│     [ ] prefers-reduced-motion respected                                                │
+│     [ ] Responsive: 375px, 768px, 1024px, 1440px                                        │
+└─────────────────────────────────────────────────────────────────────────────────────────┘

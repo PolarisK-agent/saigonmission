@@ -1,0 +1,33 @@
+{
+  "channelId": "UC6oE7oR7nI1Ac9mUb40UFnw",
+  "channelHandleUrl": "https://www.youtube.com/@SaigonMissionChurch",
+  "maxItems": 60,
+  "sermonKeywords": [
+    "주일예배설교",
+    "주일 예배 설교",
+    "주일예배",
+    "주일 예배",
+    "예배설교",
+    "말씀"
+  ],
+  "seniorPastorKeywords": [
+    "장재식",
+    "담임목사"
+  ],
+  "excludeKeywords": [
+    "유아세례",
+    "세례식",
+    "특강",
+    "세미나",
+    "간증",
+    "찬양",
+    "기도회",
+    "선교소식",
+    "광고"
+  ],
+  "removeEnglishChurchNames": [
+    "Saigon Mission Church",
+    "Saigom Mission Church",
+    "Siaogon Mission Church"
+  ]
+}
