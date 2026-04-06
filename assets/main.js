@@ -49,6 +49,20 @@ function extractBibleRef(text) {
   return m[0].replace(/\s+/g, " ").trim();
 }
 
+function looksLikeDateOnlyTitle(text) {
+  const s = String(text || "").trim();
+  return /^\d{4}[./-]\d{1,2}[./-]\d{1,2}$/.test(s)
+    || /^\d{4}\s*년\s*\d{1,2}\s*월\s*\d{1,2}\s*일$/.test(s);
+}
+
+function titleFromDescription(description) {
+  const parts = String(description || "")
+    .split("/")
+    .map((p) => cleanDisplayTitle(p))
+    .filter(Boolean);
+  return parts[0] || "";
+}
+
 function cleanDisplayTitle(title) {
   return decodeHtmlEntities(String(title || ""))
     .replace(/Saig\w*\s+Mission\s+Church/gi, "")
@@ -143,11 +157,14 @@ function updateLoadMoreState() {
   loadMoreBtn.textContent = `지난 설교 더 보기`;
 }
 
-function formatSermonTitle(rawTitle, dateText) {
+function formatSermonTitle(rawTitle, dateText, description = "") {
   const s = decodeHtmlEntities(String(rawTitle || "")).replace(/["']/g, "").trim();
   const parts = s.split("/").map((p) => p.trim()).filter(Boolean);
-
-  const title = parts[0] || cleanDisplayTitle(s) || "주일예배 설교";
+  const candidateTitle = parts[0] || cleanDisplayTitle(s);
+  const normalizedTitle = looksLikeDateOnlyTitle(candidateTitle)
+    ? (titleFromDescription(description) || candidateTitle)
+    : candidateTitle;
+  const title = normalizedTitle || "주일예배 설교";
   let pastor = parts.find((p) => p.includes("목사")) || "";
   if (pastor && !pastor.includes(" 목사") && pastor.includes("목사")) {
     pastor = pastor.replace("목사", " 목사");
@@ -155,7 +172,7 @@ function formatSermonTitle(rawTitle, dateText) {
 
   const occasion = parts.find((p) => p.includes("예배") || p.includes("설교")) || "";
   const bible = extractBibleRef(s);
-  const scriptureOrOccasion = bible || occasion || "본문";
+  const scriptureOrOccasion = bible || occasion || "주일 예배 설교";
 
   const dateFromTitle = extractFirstDate(s);
   const dateFromFallback = extractFirstDate(dateText) || "";
@@ -186,7 +203,7 @@ function renderNextPage() {
       const baseTitle = cleanDisplayTitle(item.title);
       const summary = getSummary(item);
       const dateText = formatDate(item.publishedAt) || item.publishedText || "";
-      const parsed = formatSermonTitle(item.title, dateText);
+      const parsed = formatSermonTitle(item.title, dateText, item.description || "");
       const titleText = escapeHtml(parsed.title);
       const scriptureText = escapeHtml(parsed.scripture);
       const metaText = escapeHtml(parsed.meta);

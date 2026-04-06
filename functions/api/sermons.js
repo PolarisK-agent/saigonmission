@@ -164,6 +164,22 @@ function makeSummary(item) {
   return buildTranscriptSummary(item.transcript || item.description || "", item.title || "");
 }
 
+function makeFallbackSummary(item) {
+  const title = cleanTitle(item.title || "", DEFAULTS.removeEnglishChurchNames)
+    .split("/")[0]
+    .replace(/["'“”‘’]/g, "")
+    .trim();
+
+  const dateText = makeDateKey(item).replace(/-/g, ".");
+  if (title && dateText) {
+    return `${title} 말씀을 중심으로 신앙의 핵심을 정리한 주일 설교입니다. ${dateText} 예배에서 선포된 말씀을 일상 속 믿음으로 이어가도록 돕습니다.`;
+  }
+  if (title) {
+    return `${title} 말씀을 중심으로 신앙의 핵심을 정리한 주일 설교입니다. 공동체와 삶 속에서 복음을 실천하도록 격려하는 메시지입니다.`;
+  }
+  return "주일 설교의 핵심 메시지를 정리해 신앙의 방향을 분명히 하고, 일상에서 말씀을 실천하도록 돕습니다.";
+}
+
 function isSeniorPastorSermon(item, options) {
   const text = squash(`${item.title} ${item.description || ""}`);
 
@@ -348,6 +364,20 @@ async function fetchVideoDescription(videoId) {
   }
 }
 
+async function fetchOEmbed(videoId) {
+  const url = `https://www.youtube.com/oembed?url=${encodeURIComponent(`https://www.youtube.com/watch?v=${videoId}`)}&format=json`;
+  const response = await fetch(url, {
+    headers: { "User-Agent": "Mozilla/5.0" },
+    cf: { cacheTtl: 3600, cacheEverything: true }
+  });
+  if (!response.ok) return null;
+  try {
+    return await response.json();
+  } catch {
+    return null;
+  }
+}
+
 function parsePlayerResponseFromHtml(html) {
   const matched =
     html.match(/var ytInitialPlayerResponse = (\{[\s\S]*?\});/) ||
@@ -430,18 +460,30 @@ async function fetchTranscriptByVideoId(videoId) {
 }
 
 async function enrichDescriptions(items) {
-  const limit = 12;
+  const limit = 24;
   const target = items.slice(0, limit);
 
   const enriched = await Promise.all(
     target.map(async (item) => {
+      const oembed = await fetchOEmbed(item.videoId);
       const transcript = await fetchTranscriptByVideoId(item.videoId);
       const fetchedDescription = sanitizeDescription(item.description || "").length >= 40
         ? item.description
         : await fetchVideoDescription(item.videoId);
 
+      const betterTitle = looksLikeDateTitle(item.title)
+        ? (extractTitleFromDescription(item.description || fetchedDescription || "") || oembed?.title || item.title)
+        : item.title;
+
+      const oembedThumb = String(oembed?.thumbnail_url || "").trim();
+      const normalizedThumb = oembedThumb || item.thumbnail;
+
       return {
         ...item,
+        title: betterTitle,
+        thumbnail: normalizedThumb,
+        thumbnailHigh: normalizedThumb,
+        thumbnailFallback: normalizedThumb,
         transcript,
         description: fetchedDescription || item.description || ""
       };
@@ -456,7 +498,9 @@ async function enrichDescriptions(items) {
     };
     return {
       ...merged,
-      summary: makeSummary(merged)
+      summary: merged.transcript
+        ? makeSummary(merged)
+        : makeFallbackSummary(merged)
     };
   });
 }
