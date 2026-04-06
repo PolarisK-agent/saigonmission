@@ -113,6 +113,12 @@ function attachThumbnailFallback() {
       if (!videoId) return;
 
       if (tried === "maxres") {
+        img.dataset.tried = "mq";
+        img.src = `https://i.ytimg.com/vi/${videoId}/mqdefault.jpg`;
+        return;
+      }
+
+      if (tried === "mq") {
         img.dataset.tried = "sd";
         img.src = `https://i.ytimg.com/vi/${videoId}/sddefault.jpg`;
         return;
@@ -129,6 +135,8 @@ function attachThumbnailFallback() {
         img.src = `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`;
         return;
       }
+
+      img.src = "assets/images/blog.png";
       });
     }
 
@@ -172,7 +180,7 @@ function formatSermonTitle(rawTitle, dateText, description = "") {
 
   const occasion = parts.find((p) => p.includes("예배") || p.includes("설교")) || "";
   const bible = extractBibleRef(s);
-  const scriptureOrOccasion = bible || occasion || "주일 예배 설교";
+  const scriptureOrOccasion = bible || occasion || "";
 
   const dateFromTitle = extractFirstDate(s);
   const dateFromFallback = extractFirstDate(dateText) || "";
@@ -200,8 +208,6 @@ function renderNextPage() {
 
   const html = nextItems
     .map((item) => {
-      const baseTitle = cleanDisplayTitle(item.title);
-      const summary = getSummary(item);
       const dateText = formatDate(item.publishedAt) || item.publishedText || "";
       const parsed = formatSermonTitle(item.title, dateText, item.description || "");
       const titleText = escapeHtml(parsed.title);
@@ -216,15 +222,15 @@ function renderNextPage() {
               src="${escapeHtml(item.thumbnail || `https://i.ytimg.com/vi/${item.videoId}/hqdefault.jpg`)}"
               alt="${titleText} 썸네일"
               loading="lazy"
+              referrerpolicy="no-referrer"
               data-video-id="${escapeHtml(item.videoId)}"
               data-tried="hq"
             />
           </a>
           <div class="video-meta">
-            <p class="section-kicker" style="margin:0 0 0.35rem;">${scriptureText}</p>
+            ${scriptureText ? `<p class="section-kicker" style="margin:0 0 0.35rem;">${scriptureText}</p>` : ``}
             <h3>${titleText}</h3>
             ${metaText ? `<p class="sermon-meta">${metaText}</p>` : ``}
-            <p class="sermon-summary">${escapeHtml(summary)}</p>
           </div>
         </article>
       `;

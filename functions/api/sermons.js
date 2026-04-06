@@ -337,11 +337,7 @@ function normalize(items, options) {
       thumbnailHigh: `https://i.ytimg.com/vi/${item.videoId}/maxresdefault.jpg`,
       thumbnailFallback: `https://i.ytimg.com/vi/${item.videoId}/sddefault.jpg`
     }))
-    .slice(0, options.maxItems)
-    .map((item) => ({
-      ...item,
-      summary: makeSummary(item)
-    }));
+    .slice(0, options.maxItems);
 }
 
 async function fetchVideoDescription(videoId) {
@@ -466,7 +462,6 @@ async function enrichDescriptions(items) {
   const enriched = await Promise.all(
     target.map(async (item) => {
       const oembed = await fetchOEmbed(item.videoId);
-      const transcript = await fetchTranscriptByVideoId(item.videoId);
       const fetchedDescription = sanitizeDescription(item.description || "").length >= 40
         ? item.description
         : await fetchVideoDescription(item.videoId);
@@ -476,7 +471,7 @@ async function enrichDescriptions(items) {
         : item.title;
 
       const oembedThumb = String(oembed?.thumbnail_url || "").trim();
-      const normalizedThumb = oembedThumb || item.thumbnail;
+      const normalizedThumb = oembedThumb || item.thumbnail || `https://img.youtube.com/vi/${item.videoId}/hqdefault.jpg`;
 
       return {
         ...item,
@@ -484,25 +479,16 @@ async function enrichDescriptions(items) {
         thumbnail: normalizedThumb,
         thumbnailHigh: normalizedThumb,
         thumbnailFallback: normalizedThumb,
-        transcript,
         description: fetchedDescription || item.description || ""
       };
     })
   );
 
-  return [...enriched, ...items.slice(limit)].map((item) => {
-    const merged = {
-      ...item,
-      title: cleanTitle(item.title || "", DEFAULTS.removeEnglishChurchNames),
-      description: decodeXmlEntities(item.description || "")
-    };
-    return {
-      ...merged,
-      summary: merged.transcript
-        ? makeSummary(merged)
-        : makeFallbackSummary(merged)
-    };
-  });
+  return [...enriched, ...items.slice(limit)].map((item) => ({
+    ...item,
+    title: cleanTitle(item.title || "", DEFAULTS.removeEnglishChurchNames),
+    description: decodeXmlEntities(item.description || "")
+  }));
 }
 
 async function fetchByRss(channelId) {
