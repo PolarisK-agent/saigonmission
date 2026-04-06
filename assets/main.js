@@ -311,10 +311,79 @@ function updateStickyHeader() {
   }
 }
 
+function getScrollOffset() {
+  const navHeight = topNav ? topNav.getBoundingClientRect().height : 0;
+  return Math.max(navHeight + 12, 72);
+}
+
+function flashScrollTarget(target) {
+  if (!target) return;
+  target.classList.remove("scroll-target-flash");
+  // Reflow to restart animation when users click multiple times quickly.
+  void target.offsetWidth;
+  target.classList.add("scroll-target-flash");
+  window.setTimeout(() => {
+    target.classList.remove("scroll-target-flash");
+  }, 900);
+}
+
+function scrollToHash(hash) {
+  if (!hash || hash === "#") return;
+  const target = document.querySelector(hash);
+  if (!target) return;
+
+  const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const top = Math.max(window.scrollY + target.getBoundingClientRect().top - getScrollOffset(), 0);
+
+  window.scrollTo({
+    top,
+    behavior: prefersReducedMotion ? "auto" : "smooth"
+  });
+
+  if (!prefersReducedMotion) {
+    flashScrollTarget(target);
+  }
+}
+
+function bindSmoothScrollLinks() {
+  const inPageLinks = document.querySelectorAll('a[href^="#"]');
+  if (!inPageLinks.length) return;
+
+  inPageLinks.forEach((link) => {
+    link.addEventListener("click", (event) => {
+      const rawHref = link.getAttribute("href") || "";
+      if (!rawHref.startsWith("#") || rawHref === "#") return;
+
+      const target = document.querySelector(rawHref);
+      if (!target) return;
+
+      event.preventDefault();
+      scrollToHash(rawHref);
+      history.replaceState(null, "", rawHref);
+    });
+  });
+}
+
 renderSermons();
 observeReveal();
 updateScrollProgress();
 updateStickyHeader();
+bindSmoothScrollLinks();
+
+window.addEventListener("scroll", () => {
+  updateScrollProgress();
+  updateStickyHeader();
+}, { passive: true });
+
+window.addEventListener("resize", () => {
+  updateScrollProgress();
+});
+
+window.addEventListener("load", () => {
+  if (window.location.hash) {
+    scrollToHash(window.location.hash);
+  }
+});
 
 const yearEl = document.getElementById("current-year");
 if (yearEl) yearEl.textContent = String(new Date().getFullYear());
