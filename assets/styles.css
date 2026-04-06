@@ -28,6 +28,7 @@ body {
   color: var(--ink);
   line-height: 1.7;
   scroll-behavior: smooth;
+  overflow-x: hidden;
 }
 
 h1,
@@ -145,14 +146,17 @@ a:hover {
   display: flex;
   flex-direction: row;
   align-items: center;
+  flex-wrap: wrap;
   gap: 0.9rem;
   margin-bottom: 2rem;
+  max-width: 100%;
 }
 
 .hero-brand {
   height: 102px;
   width: auto;
   display: block;
+  max-width: min(82vw, 560px);
 }
 
 .hero-badge {
@@ -175,6 +179,8 @@ a:hover {
   font-size: 0.72rem;
   padding: 0.34rem 0.62rem;
   letter-spacing: 0.03em;
+  max-width: 100%;
+  white-space: normal;
 }
 
 .hero h1 {
@@ -756,6 +762,14 @@ footer a:hover {
   border-top: 1px solid rgba(255, 255, 255, 0.1);
 }
 
+.footer-contact-line {
+  margin: 0;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: keep-all;
+  line-height: 1.8;
+}
+
 /* Reveal Animation */
 .reveal {
   opacity: 0;
@@ -810,7 +824,7 @@ footer a:hover {
   }
 
   .hero-content {
-    padding: 3rem 0;
+    padding: 5.4rem 0 3rem;
   }
 
   .hero-panel {
@@ -822,7 +836,12 @@ footer a:hover {
   }
 
   .hero-brand {
-    height: 72px;
+    height: 62px;
+    max-width: 76vw;
+  }
+
+  .hero-badge.ghost {
+    font-size: 0.66rem;
   }
 
   .section-head {
@@ -838,5 +857,10 @@ footer a:hover {
 
   .top-nav {
     padding: 0.8rem 1rem;
+  }
+
+  .top-logo {
+    width: 68px;
+    height: 68px;
   }
 }
