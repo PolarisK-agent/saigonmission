@@ -62,8 +62,17 @@ function sanitizeDescription(text) {
       .replace(/#\S+/g, "")
       .replace(/This stream is created with #PRISMLiveStudio/gi, "")
       .replace(/\[[^\]]*\]/g, " ")
+      .replace(/[\/|]+/g, " ")
       .replace(/[|]+/g, " ")
   );
+}
+
+function isMetadataHeavy(text) {
+  const s = squash(String(text || ""));
+  if (!s) return true;
+  const hits = ["목사", "주일", "예배", "설교", "사이공", "교회"].filter((k) => s.includes(k)).length;
+  const plainWords = s.split(/\s+/).filter(Boolean).length;
+  return hits >= 3 && plainWords <= 16;
 }
 
 function decodeXmlEntities(text) {
@@ -76,18 +85,60 @@ function decodeXmlEntities(text) {
     .replaceAll("&#10;", " ");
 }
 
+function looksLikeDateTitle(title) {
+  const t = squash(String(title || "").replace(/["'“”‘’]/g, ""));
+  if (!t) return true;
+  if (/^\d{4}[./-]\d{1,2}[./-]\d{1,2}$/.test(t)) return true;
+  if (/^\d{4}\s*년\s*\d{1,2}\s*월\s*\d{1,2}\s*일$/.test(t)) return true;
+  return false;
+}
+
+function extractTitleFromDescription(description) {
+  const d = decodeXmlEntities(String(description || ""));
+  if (!d) return "";
+  const parts = d
+    .split("/")
+    .map((p) => squash(p))
+    .filter(Boolean);
+
+  if (!parts.length) return "";
+
+  const banned = ["주일예배", "주일 예배", "설교", "장재식", "목사", "사이공", "교회", "202", "20"];
+  const picked = parts.find((p) => !banned.some((kw) => p.includes(kw))) || parts[0];
+  return picked.replace(/["'“”‘’]/g, "").trim();
+}
+
 function buildTranscriptSummary(transcriptText, title) {
   const cleaned = sanitizeDescription(transcriptText)
     .replace(/\b(음|어|저기|그냥|이제)\b/g, "")
     .replace(/\s{2,}/g, " ")
     .trim();
 
+  // Prefer 2-3 natural Korean sentences from transcript text.
+  const sentences = cleaned
+    .split(/(?<=[.!?])\s+|(?<=다\.)\s+/)
+    .map((s) => s.trim())
+    .filter((s) => s.length >= 18 && !/^\d+[.)]/.test(s));
+
+  if (sentences.length >= 2) {
+    const picked = [];
+    for (const sentence of sentences) {
+      picked.push(sentence);
+      if (picked.length >= 3) break;
+    }
+    const summary = picked.join(" ");
+    return summary.length > 320 ? `${summary.slice(0, 320)}...` : summary;
+  }
+
   if (cleaned.length < 120) {
     const firstPart = cleanTitle(squash((title || "").split("/")[0].replace(/["']/g, "")), []);
-    if (cleaned.length >= 40) {
+    if (cleaned.length >= 40 && !isMetadataHeavy(cleaned)) {
       return cleaned.length > 220 ? `${cleaned.slice(0, 220)}...` : cleaned;
     }
-    return firstPart ? `${firstPart} 말씀을 나누는 주일 설교입니다.` : "설교 영상 요약 정보입니다.";
+    if (firstPart) {
+      return `${firstPart} 말씀을 중심으로 신앙의 본질을 돌아보는 주일 설교입니다. 일상에서 믿음을 적용하도록 도전하고 위로를 전합니다.`;
+    }
+    return "주일 설교의 핵심 메시지를 전하며, 삶 속에서 복음을 실천하도록 돕는 말씀입니다.";
   }
 
   const parts = cleaned
@@ -257,12 +308,24 @@ function normalize(items, options) {
   return deduped
     .map((item) => ({
       ...item,
-      title: cleanTitle(item.title, options.removeEnglishChurchNames),
+      title: (() => {
+        const cleanedTitle = cleanTitle(item.title, options.removeEnglishChurchNames);
+        if (!looksLikeDateTitle(cleanedTitle)) return cleanedTitle;
+        const fromDescription = extractTitleFromDescription(item.description);
+        if (!fromDescription) return cleanedTitle;
+        return cleanTitle(fromDescription, options.removeEnglishChurchNames);
+      })(),
+      description: decodeXmlEntities(item.description || ""),
+      publishedText: decodeXmlEntities(item.publishedText || ""),
       thumbnail: `https://i.ytimg.com/vi/${item.videoId}/hqdefault.jpg`,
       thumbnailHigh: `https://i.ytimg.com/vi/${item.videoId}/maxresdefault.jpg`,
       thumbnailFallback: `https://i.ytimg.com/vi/${item.videoId}/sddefault.jpg`
     }))
-    .slice(0, options.maxItems);
+    .slice(0, options.maxItems)
+    .map((item) => ({
+      ...item,
+      summary: makeSummary(item)
+    }));
 }
 
 async function fetchVideoDescription(videoId) {
@@ -320,7 +383,19 @@ async function fetchTranscriptByVideoId(videoId) {
   const playerResponse = parsePlayerResponseFromHtml(html);
   const captionTracks = playerResponse?.captions?.playerCaptionsTracklistRenderer?.captionTracks || [];
   const chosenTrack = pickCaptionTrack(captionTracks);
-  if (!chosenTrack?.baseUrl) return "";
+  if (!chosenTrack?.baseUrl) {
+    // Fallback to direct timedtext endpoint (Google/YouTube caption API).
+    const directUrl = `https://www.youtube.com/api/timedtext?lang=ko&v=${videoId}`;
+    const directRes = await fetch(directUrl, {
+      headers: { "User-Agent": "Mozilla/5.0" },
+      cf: { cacheTtl: 3600, cacheEverything: true }
+    });
+
+    if (!directRes.ok) return "";
+    const directXml = await directRes.text();
+    const directLines = [...directXml.matchAll(/<text[^>]*>([\s\S]*?)<\/text>/g)].map((m) => decodeXmlEntities(m[1]));
+    return squash(directLines.join(" "));
+  }
 
   // Prefer json3 transcript format for robust parsing.
   const json3Url = `${chosenTrack.baseUrl}&fmt=json3`;
@@ -373,10 +448,17 @@ async function enrichDescriptions(items) {
     })
   );
 
-  return [...enriched, ...items.slice(limit)].map((item) => ({
-    ...item,
-    summary: makeSummary(item)
-  }));
+  return [...enriched, ...items.slice(limit)].map((item) => {
+    const merged = {
+      ...item,
+      title: cleanTitle(item.title || "", DEFAULTS.removeEnglishChurchNames),
+      description: decodeXmlEntities(item.description || "")
+    };
+    return {
+      ...merged,
+      summary: makeSummary(merged)
+    };
+  });
 }
 
 async function fetchByRss(channelId) {
