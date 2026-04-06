@@ -226,6 +226,7 @@ a:hover {
 .hero-primary:hover {
   transform: translateY(-2px);
   box-shadow: 0 12px 28px rgba(230, 126, 34, 0.45);
+  text-decoration: none;
 }
 
 .hero-secondary {
@@ -237,6 +238,7 @@ a:hover {
 
 .hero-secondary:hover {
   background: rgba(255, 255, 255, 0.2);
+  text-decoration: none;
 }
 
 .hero-panel {
@@ -322,6 +324,7 @@ a:hover {
 .quick-nav-inline a:hover {
   background: rgba(255, 255, 255, 0.2);
   border-color: rgba(255, 255, 255, 0.4);
+  text-decoration: none;
 }
 
 .quick-nav a {
@@ -339,6 +342,7 @@ a:hover {
 .quick-nav a:hover {
   background: rgba(255, 255, 255, 0.15);
   border-color: rgba(255, 255, 255, 0.5);
+  text-decoration: none;
 }
 
 /* Sections */
@@ -659,8 +663,8 @@ a:hover {
 }
 
 .load-more-btn {
-  border: 1px solid rgba(45, 139, 87, 0.2);
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.98), rgba(248, 255, 252, 0.95));
+  border: 1px solid rgba(230, 126, 34, 0.24);
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.98), rgba(255, 247, 238, 0.95));
   color: var(--brand);
   padding: 0.8rem 1.5rem;
   border-radius: 999px;
@@ -672,9 +676,9 @@ a:hover {
 }
 
 .load-more-btn:hover {
-  background: #f5faf8;
+  background: #fff1e3;
   transform: translateY(-2px);
-  box-shadow: 0 6px 16px rgba(45, 139, 87, 0.15);
+  box-shadow: 0 6px 16px rgba(230, 126, 34, 0.24);
 }
 
 /* News & Mission */
