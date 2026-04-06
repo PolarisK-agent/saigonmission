@@ -1,2 +1,4 @@
 .uupm/
 교회홈페이지/
+node_modules/
+.wrangler/
