@@ -314,10 +314,10 @@ function updateStickyHeader() {
 
 function updateFloatingTopButton() {
   if (!floatingTopBtn) return;
-  if (window.scrollY > 320) {
+  if (window.scrollY > 40) {
     floatingTopBtn.classList.add("visible");
   } else {
-    floatingTopBtn.classList.remove("visible");
+    floatingTopBtn.classList.add("visible");
   }
 }
 
