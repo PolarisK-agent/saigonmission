@@ -1,6 +1,7 @@
 const sermonList = document.getElementById("sermon-list");
 const loadMoreBtn = document.getElementById("load-more-sermons");
 const scrollProgress = document.querySelector(".scroll-progress span");
+const floatingTopBtn = document.getElementById("floating-top");
 const PAGE_SIZE = 10;
 
 let sermonItems = [];
@@ -311,6 +312,15 @@ function updateStickyHeader() {
   }
 }
 
+function updateFloatingTopButton() {
+  if (!floatingTopBtn) return;
+  if (window.scrollY > 320) {
+    floatingTopBtn.classList.add("visible");
+  } else {
+    floatingTopBtn.classList.remove("visible");
+  }
+}
+
 function getScrollOffset() {
   const navHeight = topNav ? topNav.getBoundingClientRect().height : 0;
   return Math.max(navHeight + 12, 72);
@@ -368,28 +378,33 @@ renderSermons();
 observeReveal();
 updateScrollProgress();
 updateStickyHeader();
+updateFloatingTopButton();
 bindSmoothScrollLinks();
 
 window.addEventListener("scroll", () => {
   updateScrollProgress();
   updateStickyHeader();
+  updateFloatingTopButton();
 }, { passive: true });
 
 window.addEventListener("resize", () => {
   updateScrollProgress();
+  updateFloatingTopButton();
 });
 
 window.addEventListener("load", () => {
   if (window.location.hash) {
     scrollToHash(window.location.hash);
   }
+  updateFloatingTopButton();
 });
+
+if (floatingTopBtn) {
+  floatingTopBtn.addEventListener("click", () => {
+    scrollToHash("#top");
+    history.replaceState(null, "", "#top");
+  });
+}
 
 const yearEl = document.getElementById("current-year");
 if (yearEl) yearEl.textContent = String(new Date().getFullYear());
-
-window.addEventListener("scroll", () => {
-  updateScrollProgress();
-  updateStickyHeader();
-}, { passive: true });
-window.addEventListener("resize", updateScrollProgress);
